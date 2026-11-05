@@ -2,10 +2,11 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/face_analysis_result.dart';
 
 /// Service that performs face detection and smile classification using
-/// Google ML Kit on mobile devices, with fallback support for desktop environments.
+/// Google ML Kit on mobile devices, with cross-platform fallback for Web/Desktop environments.
 class FaceDetectorService {
   FaceDetector? _detector;
 
@@ -23,29 +24,33 @@ class FaceDetectorService {
   }
 
   /// Whether Google ML Kit native binary is supported on the current platform.
-  static bool get _isMlKitSupported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  /// IMPORTANT: kIsWeb must be checked first because dart:io Platform throws on Web.
+  static bool get _isMlKitSupported {
+    if (kIsWeb) return false;
+    return Platform.isAndroid || Platform.isIOS;
+  }
 
   /// Runs face detection on [imageFile].
   ///
   /// Returns a record with:
   /// - [results]: list of structured per-face results with smile classification.
-  /// - [infoMessage]: optional informational notice (e.g. desktop preview).
+  /// - [infoMessage]: optional informational notice (e.g. web/desktop preview).
   Future<({List<FaceAnalysisResult> results, String? infoMessage})> detect({
-    required File imageFile,
+    required XFile imageFile,
     required Size imageSize,
   }) async {
     if (!_isMlKitSupported) {
-      // Desktop / Web preview simulation so developers can test the full UI flow
+      // Desktop / Web preview simulation so users/reviewers can test the full UI flow
       return (
-        results: _generateDesktopSimulation(imageSize),
-        infoMessage:
-            'Running in desktop preview mode. Google ML Kit native is active on Android & iOS.',
+        results: _generateSimulation(imageSize),
+        infoMessage: kIsWeb
+            ? 'Running in Web preview mode. Google ML Kit native runs on Android & iOS.'
+            : 'Running in Desktop preview mode. Google ML Kit native runs on Android & iOS.',
       );
     }
 
     try {
-      final inputImage = InputImage.fromFile(imageFile);
+      final inputImage = InputImage.fromFilePath(imageFile.path);
       final faces = await _detector!.processImage(inputImage);
 
       final results = faces.asMap().entries.map((entry) {
@@ -65,17 +70,17 @@ class FaceDetectorService {
       debugPrint('ML Kit Face Detection Error: $e');
       if (e.toString().contains('MissingPluginException')) {
         return (
-          results: _generateDesktopSimulation(imageSize),
+          results: _generateSimulation(imageSize),
           infoMessage:
-              'Running in desktop preview mode. Google ML Kit native runs on Android & iOS.',
+              'Running in preview mode. Google ML Kit native runs on Android & iOS.',
         );
       }
       rethrow;
     }
   }
 
-  /// Generates sample face bounding boxes for desktop development & testing.
-  List<FaceAnalysisResult> _generateDesktopSimulation(Size imageSize) {
+  /// Generates sample face bounding boxes for desktop/web development & testing.
+  List<FaceAnalysisResult> _generateSimulation(Size imageSize) {
     final w = imageSize.width > 0 ? imageSize.width : 800.0;
     final h = imageSize.height > 0 ? imageSize.height : 600.0;
 

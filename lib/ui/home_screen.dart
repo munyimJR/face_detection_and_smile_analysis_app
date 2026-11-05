@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,7 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final _picker = ImagePicker();
   final _service = FaceDetectorService();
 
-  File? _imageFile;
   Uint8List? _imageBytes;
   Size _imageSize = Size.zero;
   List<FaceAnalysisResult> _results = [];
@@ -57,17 +55,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pickAndAnalyze() async {
     try {
+      // Limit resolution to 2048px for optimal performance, memory, and fast detection
       final picked = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 2400,
-        maxHeight: 2400,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 92,
       );
 
       if (picked == null) return; // User cancelled picker
 
-      // Read image bytes reliably across all platforms
+      // Read image bytes reliably across all platforms (Web, Android, iOS, Windows, macOS, Linux)
       final bytes = await picked.readAsBytes();
-      final file = File(picked.path);
 
       // Extract image dimensions for precise bounding box mapping
       Size decodedSize = const Size(800, 600);
@@ -81,10 +80,9 @@ class _HomeScreenState extends State<HomeScreen> {
         debugPrint('Dimension decode warning: $e');
       }
 
-      // Update state immediately so the image is shown right away
+      // Update state immediately so the image is displayed with zero lag
       if (mounted) {
         setState(() {
-          _imageFile = file;
           _imageBytes = bytes;
           _imageSize = decodedSize;
           _isLoading = true;
@@ -96,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Perform face detection and smile analysis
       final detection = await _service.detect(
-        imageFile: file,
+        imageFile: picked,
         imageSize: decodedSize,
       );
 
@@ -113,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _isLoading = false;
           _errorMessage =
-              'Could not analyze image. Please make sure file format is supported and try again.';
+              'Could not analyze image. Please make sure the file format is supported and try again.';
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -131,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasImage = _imageBytes != null || _imageFile != null;
+    final hasImage = _imageBytes != null;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -187,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Notice banner (e.g. desktop preview notice)
+              // Notice banner (e.g. desktop/web preview notice)
               if (_infoNotice != null) ...[
                 _buildInfoBanner(_infoNotice!),
                 const SizedBox(height: 16),
@@ -428,13 +426,14 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Render Image & Bounding Boxes
-                ImageWithBoundingBoxes(
-                  imageFile: _imageFile,
-                  imageBytes: _imageBytes,
-                  results: _results,
-                  imageSize: _imageSize,
-                  showLabels: _showLabelsOnImage,
+                // Render Image & Bounding Boxes with RepaintBoundary for optimal painting performance
+                RepaintBoundary(
+                  child: ImageWithBoundingBoxes(
+                    imageBytes: _imageBytes!,
+                    results: _results,
+                    imageSize: _imageSize,
+                    showLabels: _showLabelsOnImage,
+                  ),
                 ),
 
                 // Loading Frosted Overlay
