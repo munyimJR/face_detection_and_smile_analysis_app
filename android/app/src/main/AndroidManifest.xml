@@ -1,15 +1,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Network permission for Google ML Kit to download the face detection model -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <!-- Gallery read permission for Android ≤ 12 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
 
     <!-- Gallery read permission for Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Android 14 partial access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+
     <application
         android:label="face_detection_and_smile_analysis_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- Instructs Google Play Services to automatically download the ML Kit face detection model -->
+        <meta-data
+            android:name="com.google.ml.vision.DEPENDENCIES"
+            android:value="face" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
