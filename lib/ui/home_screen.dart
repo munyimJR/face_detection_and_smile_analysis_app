@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/face_detector_service.dart';
 import '../models/face_analysis_result.dart';
+import '../theme/theme_notifier.dart';
 import 'widgets/image_with_bounding_boxes.dart';
 import 'widgets/analytics_card.dart';
 import 'widgets/face_info_card.dart';
@@ -171,6 +172,39 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: theme.colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeModeNotifier,
+            builder: (context, themeMode, _) {
+              final isDark = themeMode == ThemeMode.dark ||
+                  (themeMode == ThemeMode.system &&
+                      MediaQuery.platformBrightnessOf(context) ==
+                          Brightness.dark);
+              return IconButton(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, anim) =>
+                      RotationTransition(turns: anim, child: child),
+                  child: Icon(
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    key: ValueKey<bool>(isDark),
+                    color: isDark
+                        ? const Color(0xFFFBBF24) // warm sun yellow
+                        : theme.colorScheme.primary,
+                  ),
+                ),
+                tooltip: isDark
+                    ? 'Switch to Light Mode'
+                    : 'Switch to Dark Mode',
+                onPressed: () {
+                  themeModeNotifier.value =
+                      isDark ? ThemeMode.light : ThemeMode.dark;
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(
